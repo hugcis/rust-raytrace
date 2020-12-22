@@ -1,9 +1,12 @@
-use std::ops;
+use crate::utils::{random_double, random_double_range};
 use std::fmt;
+use std::ops;
+
+const GAMMA: f64 = 2.;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Vec3 {
-    pub e: [f64; 3]
+    pub e: [f64; 3],
 }
 pub type Color = Vec3;
 pub type Point3 = Vec3;
@@ -17,36 +20,44 @@ impl ops::Add<Vec3> for Vec3 {
     type Output = Vec3;
 
     fn add(self, other: Self) -> Vec3 {
-        Vec3 { e: [self.e[0] + other.e[0],
-                   self.e[1] + other.e[1],
-                   self.e[2] + other.e[2]] }
+        Vec3 {
+            e: [
+                self.e[0] + other.e[0],
+                self.e[1] + other.e[1],
+                self.e[2] + other.e[2],
+            ],
+        }
     }
 }
 impl ops::Add<f64> for Vec3 {
     type Output = Vec3;
 
     fn add(self, other: f64) -> Vec3 {
-        Vec3 { e: [self.e[0] + other,
-                   self.e[1] + other,
-                   self.e[2] + other] }
+        Vec3 {
+            e: [self.e[0] + other, self.e[1] + other, self.e[2] + other],
+        }
     }
 }
 impl ops::Mul<Vec3> for Vec3 {
     type Output = f64;
 
     fn mul(self, other: Self) -> f64 {
-        [self.e[0] * other.e[0],
-         self.e[1] * other.e[1],
-         self.e[2] * other.e[2]].iter().sum()
+        [
+            self.e[0] * other.e[0],
+            self.e[1] * other.e[1],
+            self.e[2] * other.e[2],
+        ]
+        .iter()
+        .sum()
     }
 }
 impl ops::Mul<f64> for Vec3 {
     type Output = Vec3;
 
     fn mul(self, other: f64) -> Vec3 {
-        Vec3 { e: [self.e[0] * other,
-                   self.e[1] * other,
-                   self.e[2] * other] }
+        Vec3 {
+            e: [self.e[0] * other, self.e[1] * other, self.e[2] * other],
+        }
     }
 }
 impl ops::Sub<Vec3> for Vec3 {
@@ -77,15 +88,22 @@ impl ops::AddAssign<f64> for Vec3 {
         }
     }
 }
+impl ops::AddAssign<Vec3> for Vec3 {
+    fn add_assign(&mut self, other: Vec3) {
+        for i in 0..3 {
+            self.e[i] += other.e[i];
+        }
+    }
+}
 impl ops::Div<f64> for Vec3 {
     type Output = Vec3;
     fn div(self, rhs: f64) -> Vec3 {
-        self * (1_f64/rhs)
+        self * (1_f64 / rhs)
     }
 }
 impl ops::DivAssign<f64> for Vec3 {
     fn div_assign(&mut self, rhs: f64) {
-        *self *= 1_f64/rhs;
+        *self *= 1_f64 / rhs;
     }
 }
 impl ops::Index<usize> for Vec3 {
@@ -107,21 +125,34 @@ impl Vec3 {
     pub fn new(x: f64, y: f64, z: f64) -> Vec3 {
         Vec3 { e: [x, y, z] }
     }
-
-    pub fn length_squared(self) -> f64 {
+    pub fn random() -> Vec3 {
+        Vec3::new(random_double(), random_double(), random_double())
+    }
+    pub fn random_range(min: f64, max: f64) -> Vec3 {
+        Vec3::new(
+            random_double_range(min, max),
+            random_double_range(min, max),
+            random_double_range(min, max),
+        )
+    }
+    pub fn length_squared(&self) -> f64 {
         self.e.iter().map(|x| x * x).sum()
     }
-    pub fn length(self) -> f64 {
+    pub fn length(&self) -> f64 {
         self.length_squared().sqrt()
     }
-    pub fn x(self) -> f64 {
+    pub fn x(&self) -> f64 {
         self.e[0]
     }
-    pub fn y(self) -> f64 {
+    pub fn y(&self) -> f64 {
         self.e[1]
     }
-    pub fn z(self) -> f64 {
+    pub fn z(&self) -> f64 {
         self.e[2]
+    }
+    pub fn near_zero(&self) -> bool {
+        let s = 1e-8;
+        (self.e[0].abs() < s) & (self.e[1].abs() < s) & (self.e[2].abs() < s)
     }
 }
 
@@ -130,21 +161,60 @@ pub fn dot(one: Vec3, other: Vec3) -> f64 {
 }
 
 pub fn cross(one: Vec3, other: Vec3) -> Vec3 {
-    Vec3 { e: [one.e[1] * other.e[2] - one.e[2] * other.e[1],
-               one.e[2] * other.e[0] - one.e[0] * other.e[2],
-               one.e[0] * other.e[1] - one.e[1] * other.e[0]]}
+    Vec3 {
+        e: [
+            one.e[1] * other.e[2] - one.e[2] * other.e[1],
+            one.e[2] * other.e[0] - one.e[0] * other.e[2],
+            one.e[0] * other.e[1] - one.e[1] * other.e[0],
+        ],
+    }
 }
+
+#[inline]
 pub fn unit_vector(v: &Vec3) -> Vec3 {
     v.clone() / v.length()
 }
 
-pub fn write_color(v: Vec3, mut writer: impl std::io::Write) -> std::io::Result<()> {
-    writer.write(&format!("{} {} {}\n", (255.999 * v.e[0]).floor(),
-                         (255.999 * v.e[1]).floor(),
-                          (255.999 * v.e[2]).floor()).into_bytes())?;
+#[inline]
+pub fn write_color(
+    v: Vec3,
+    sample_per_pixel: i32,
+    mut writer: impl std::io::Write,
+) -> std::io::Result<()> {
+    let scale = 1. / f64::from(sample_per_pixel);
+    writer.write(
+        &format!(
+            "{} {} {}\n",
+            (255.999 * (scale * v.e[0]).powf(1. / GAMMA)).floor(),
+            (255.999 * (scale * v.e[1]).powf(1. / GAMMA)).floor(),
+            (255.999 * (scale * v.e[2]).powf(1. / GAMMA)).floor()
+        )
+        .into_bytes(),
+    )?;
     Ok(())
 }
 
 pub fn color(x: f64, y: f64, z: f64) -> Color {
     Color::new(x, y, z)
+}
+
+#[inline]
+pub fn random_in_unit_sphere() -> Vec3 {
+    let mut p;
+    loop {
+        p = Vec3::random_range(-1., 1.);
+        if p.length_squared() < 1. {
+            break;
+        }
+    }
+    p
+}
+
+#[inline]
+pub fn random_unit_vector() -> Vec3 {
+    unit_vector(&random_in_unit_sphere())
+}
+
+pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
+    v - n * dot(v, n) * 2
 }
