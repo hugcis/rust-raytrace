@@ -1,5 +1,4 @@
 use crate::utils::{random_double, random_double_range};
-use std::cmp;
 use std::fmt;
 use std::ops;
 
@@ -148,9 +147,9 @@ impl Vec3 {
     pub fn y(&self) -> f64 {
         self.e[1]
     }
-    pub fn z(&self) -> f64 {
-        self.e[2]
-    }
+    // pub fn z(&self) -> f64 {
+        // self.e[2]
+    // }
     pub fn near_zero(&self) -> bool {
         let s = 1e-8;
         (self.e[0].abs() < s) & (self.e[1].abs() < s) & (self.e[2].abs() < s)
@@ -173,7 +172,7 @@ pub fn cross(one: Vec3, other: Vec3) -> Vec3 {
 
 #[inline]
 pub fn unit_vector(v: &Vec3) -> Vec3 {
-    v.clone() / v.length()
+    *v / v.length()
 }
 
 #[inline]
@@ -182,8 +181,9 @@ pub fn write_color(
     sample_per_pixel: i32,
     mut writer: impl std::io::Write,
 ) -> std::io::Result<()> {
+
     let scale = 1. / f64::from(sample_per_pixel);
-    writer.write(
+    writer.write_all(
         &format!(
             "{} {} {}\n",
             (255.999 * (scale * v.e[0]).powf(1. / GAMMA)).floor(),
@@ -197,6 +197,10 @@ pub fn write_color(
 
 pub fn color(x: f64, y: f64, z: f64) -> Color {
     Color::new(x, y, z)
+}
+
+pub fn point3(x: f64, y: f64, z: f64) -> Point3 {
+    Point3::new(x, y, z)
 }
 
 #[inline]

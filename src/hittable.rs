@@ -45,9 +45,9 @@ pub struct Sphere {
 impl Sphere {
     pub fn new(center: Vec3, radius: f64, material: Box<dyn Material>) -> Sphere {
         Sphere {
-            center: center,
-            radius: radius,
-            material: material,
+            center,
+            radius,
+            material,
         }
     }
 }
@@ -69,11 +69,7 @@ impl Hittable for Sphere {
             let mut root = (-half_b - sq_dis) / a;
             let has_hit = if (root < t_min) | (root > t_max) {
                 root = (-half_b + sq_dis) / a;
-                if (root < t_min) | (root > t_max) {
-                    false
-                } else {
-                    true
-                }
+                !((root < t_min) | (root > t_max))
             } else {
                 true
             };

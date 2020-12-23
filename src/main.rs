@@ -37,39 +37,80 @@ fn ray_color(r: &ray::Ray, world: &HittableList, depth: i32) -> vec3::Color {
 
 fn main() {
     // Image
-    const RATIO: f64 = 16. / 9.;
-    const IM_WIDTH: i16 = 800;
+    const RATIO: f64 = 3. / 2.;
+    const IM_WIDTH: i16 = 1200;
     const MAX_DEPTH: i32 = 50;
-    let sample_per_pixel = 100;
+    let sample_per_pixel = 500;
     let im_height: i16 = (f64::from(IM_WIDTH) / RATIO) as i16;
     // World
-    let lamb1 = material::Lambertian::new(vec3::color(0.8, 0.8, 0.0));
-    let mat_center = material::Dielectric::new(1.5);
-    let metal1 = material::Metal::new(vec3::color(0.8, 0.8, 0.8), 0.3);
-    let metal2 = material::Metal::new(vec3::color(0.8, 0.6, 0.2), 1.0);
-    let mut world = hittable::HittableList { objects: vec![] };
+    let mut world = hittable::HittableList::new(vec![]);
+
+    let ground_material = material::Lambertian::new(vec3::color(0.5, 0.5, 0.5));
     world.objects.push(Box::new(hittable::Sphere::new(
-        vec3::Point3::new(0., 0., -1.),
-        0.5,
+        vec3::Point3::new(0., -1000., 0.),
+        1000.,
+        Box::new(ground_material),
+    )));
+
+    for a in -11..11 {
+        for b in -11..11 {
+            let choose_mat = utils::random_double();
+            let center = vec3::point3(
+                f64::from(a) + 0.9 * random_double(),
+                0.2,
+                f64::from(b) + 0.9 * random_double(),
+            );
+            if (center - vec3::point3(4., 0.2, 0.)).length() > 0.9 {
+                let material: Box<dyn material::Material> = if choose_mat < 0.8 {
+                    let color = vec3::Color::random() * vec3::Color::random();
+                    Box::new(material::Lambertian::new(color))
+                } else if choose_mat < 0.95 {
+                    let color = vec3::Color::random_range(0.5, 1.);
+                    let fuzz = utils::random_double_range(0., 0.5);
+                    Box::new(material::Metal::new(color, fuzz))
+                } else {
+                    Box::new(material::Dielectric::new(1.5))
+                };
+                world
+                    .objects
+                    .push(Box::new(hittable::Sphere::new(center, 0.2, material)));
+            }
+        }
+    }
+
+    let mat_center = material::Dielectric::new(1.5);
+    world.objects.push(Box::new(hittable::Sphere::new(
+        vec3::Point3::new(0., 1., 0.),
+        1.0,
         Box::new(mat_center),
     )));
+    let mat_left = material::Lambertian::new(vec3::color(0.4, 0.2, 0.1));
     world.objects.push(Box::new(hittable::Sphere::new(
-        vec3::Point3::new(1., 0., -1.),
-        0.5,
-        Box::new(metal1),
+        vec3::Point3::new(-4., 1., 0.),
+        1.0,
+        Box::new(mat_left),
     )));
+    let mat_right = material::Metal::new(vec3::color(0.7, 0.6, 0.5), 0.0);
     world.objects.push(Box::new(hittable::Sphere::new(
-        vec3::Point3::new(-1., 0., -1.),
-        0.5,
-        Box::new(metal2),
+        vec3::Point3::new(4., 1., 0.),
+        1.0,
+        Box::new(mat_right),
     )));
-    world.objects.push(Box::new(hittable::Sphere::new(
-        vec3::Point3::new(0., -100.5, -1.),
-        100.,
-        Box::new(lamb1),
-    )));
+
     // Camera
-    let camera = Camera::new();
+    let lookfrom = vec3::point3(13., 2., 3.);
+    let lookat = vec3::point3(0., 0., 0.);
+    let aperture = 0.1;
+    let dist_to_focus = 10.;
+    let camera = Camera::new(
+        lookfrom,
+        lookat,
+        vec3::Vec3::new(0., 1., 0.),
+        20.0,
+        RATIO,
+        aperture,
+        dist_to_focus,
+    );
     // Render
     print!("P3\n{} {}\n255\n", IM_WIDTH, im_height);
     for j in (0..im_height).rev() {

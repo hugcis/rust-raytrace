@@ -1,5 +1,6 @@
 use crate::hittable::HitRecord;
 use crate::ray::Ray;
+use crate::utils::random_double;
 use crate::vec3::{
     color, dot, random_in_unit_sphere, random_unit_vector, reflect, refract, unit_vector, Color,
 };
@@ -8,6 +9,7 @@ pub trait Material {
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> (bool, Color, Ray);
 }
 
+#[derive(Copy, Clone)]
 pub struct Lambertian {
     color: Color,
 }
@@ -30,6 +32,7 @@ impl Material for Lambertian {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Metal {
     color: Color,
     fuzz: f64,
@@ -60,13 +63,14 @@ impl Material for Metal {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Dielectric {
     ir: f64,
 }
 
 impl Dielectric {
     pub fn new(ir: f64) -> Dielectric {
-        Dielectric { ir: ir }
+        Dielectric { ir }
     }
 }
 
@@ -81,7 +85,9 @@ impl Material for Dielectric {
         let unit_direction = unit_vector(&r_in.direction());
         let cos_theta = dot(-unit_direction, rec.get_normal()).min(1.);
         let sin_theta = (1. - cos_theta * cos_theta).sqrt();
-        let direction = if refraction_ratio * sin_theta > 1.0 {
+        let direction = if (refraction_ratio * sin_theta > 1.0)
+            | (reflectance(cos_theta, refraction_ratio) > random_double())
+        {
             reflect(unit_direction, rec.get_normal())
         } else {
             refract(unit_direction, rec.get_normal(), refraction_ratio)
@@ -91,8 +97,8 @@ impl Material for Dielectric {
     }
 }
 
-fn reflectance(cosine: f64, ref_idx: f64) -> f64{
+fn reflectance(cosine: f64, ref_idx: f64) -> f64 {
     let mut r0 = (1. - ref_idx) / (1. + ref_idx);
     r0 = r0 * r0;
-
+    r0 + (1. - r0) * (1. - cosine).powf(5.)
 }

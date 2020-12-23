@@ -9,8 +9,8 @@ pub struct Ray {
 impl Ray {
     pub fn new(origin: Vec3, direction: Vec3) -> Ray {
         Ray {
-            orig: origin.clone(),
-            dir: direction.clone(),
+            orig: origin,
+            dir: direction,
         }
     }
 
