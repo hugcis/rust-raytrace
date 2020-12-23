@@ -1,4 +1,5 @@
 use crate::utils::{random_double, random_double_range};
+use std::cmp;
 use std::fmt;
 use std::ops;
 
@@ -39,16 +40,16 @@ impl ops::Add<f64> for Vec3 {
     }
 }
 impl ops::Mul<Vec3> for Vec3 {
-    type Output = f64;
+    type Output = Vec3;
 
-    fn mul(self, other: Self) -> f64 {
-        [
-            self.e[0] * other.e[0],
-            self.e[1] * other.e[1],
-            self.e[2] * other.e[2],
-        ]
-        .iter()
-        .sum()
+    fn mul(self, other: Self) -> Vec3 {
+        Vec3 {
+            e: [
+                self.e[0] * other.e[0],
+                self.e[1] * other.e[1],
+                self.e[2] * other.e[2],
+            ],
+        }
     }
 }
 impl ops::Mul<f64> for Vec3 {
@@ -157,7 +158,7 @@ impl Vec3 {
 }
 
 pub fn dot(one: Vec3, other: Vec3) -> f64 {
-    one * other
+    (one * other).e.iter().sum()
 }
 
 pub fn cross(one: Vec3, other: Vec3) -> Vec3 {
@@ -216,5 +217,12 @@ pub fn random_unit_vector() -> Vec3 {
 }
 
 pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
-    v - n * dot(v, n) * 2
+    v - n * dot(v, n) * 2.
+}
+
+pub fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) -> Vec3 {
+    let cos_theta = dot(-uv, n).min(1.0);
+    let r_out_perp = (uv + n * cos_theta) * etai_over_etat;
+    let r_out_parallel = n * (-(1.0 - r_out_perp.length_squared()).abs().sqrt());
+    r_out_perp + r_out_parallel
 }

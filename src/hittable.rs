@@ -1,13 +1,13 @@
 use crate::ray::Ray;
 use crate::vec3::{dot, Point3, Vec3};
-use crate::material::{Material, Lambertian};
+use crate::material::Material;
 
+#[derive(Clone, Copy)]
 pub struct HitRecord {
     pub p: Point3,
-    pub material: Box<dyn Material>,
     normal: Vec3,
     t: f64,
-    front_face: bool,
+    pub front_face: bool,
 }
 
 impl HitRecord {
@@ -17,7 +17,6 @@ impl HitRecord {
             normal: Vec3::new(0., 0., 0.),
             t: 0.0,
             front_face: true,
-            material: Box::new(Lambertian::new())
         }
     }
     pub fn set_face_normal(&mut self, r: &Ray, outward_normal: Vec3) {
@@ -34,6 +33,7 @@ impl HitRecord {
 
 pub trait Hittable {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64, hit_rec: &mut HitRecord) -> bool;
+    fn get_material(&self) -> &Box<dyn Material>;
 }
 
 pub struct Sphere {
@@ -53,6 +53,9 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
+    fn get_material(&self) -> &Box<dyn Material> {
+        &self.material
+    }
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
         let oc = r.origin() - self.center;
         let a = r.direction().length_squared();
@@ -93,23 +96,21 @@ impl HittableList {
     pub fn new(objs: Vec<Box<dyn Hittable>>) -> HittableList {
         HittableList { objects: objs }
     }
-}
 
-impl Hittable for HittableList {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
+    pub fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> (bool, usize) {
         let mut temp_rec = HitRecord::new();
         let mut hit_anything = false;
         let mut closest_so_far = t_max;
+        let mut ret_idx = 0;
 
-        for obj in &self.objects {
+        for (idx, obj) in self.objects.iter().enumerate() {
             if (*obj).hit(r, t_min, closest_so_far, &mut temp_rec) {
                 hit_anything = true;
+                ret_idx = idx;
                 closest_so_far = temp_rec.t;
-                rec.p = temp_rec.p;
-                rec.t = temp_rec.t;
-                rec.set_face_normal(r, temp_rec.normal);
+                *rec = temp_rec;
             }
         }
-        hit_anything
+        (hit_anything, ret_idx)
     }
 }
