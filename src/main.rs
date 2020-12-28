@@ -43,8 +43,8 @@ fn ray_color(r: &ray::Ray, world: &HittableList, depth: i32) -> vec3::Color {
 
 fn main() {
     // Image
-    const RATIO: f64 = 3. / 2.;
-    const IM_WIDTH: i16 = 800;
+    const RATIO: f64 = 16. / 9.;
+    const IM_WIDTH: i16 = 1200;
     const MAX_DEPTH: i32 = 50;
     let sample_per_pixel = 500;
     let im_height: i16 = (f64::from(IM_WIDTH) / RATIO) as i16;
@@ -54,7 +54,7 @@ fn main() {
     setup_world(&mut world);
 
     // Camera
-    let lookfrom = vec3::point3(18., 9., 5.);
+    let lookfrom = vec3::point3(6., 4., 9.);
     let lookat = vec3::point3(0., 0., 0.);
     let aperture = 0.1;
     let dist_to_focus = 10.;
@@ -93,7 +93,7 @@ fn add_to_pixel(pixel_color: &mut vec3::Color, scene: &Scene, line: i16, col:i16
 }
 
 fn setup_world(world: &mut HittableList) {
-    let ground_material = material::Lambertian::new(vec3::color(0.5, 0.5, 0.5));
+    let ground_material = material::Lambertian::new(vec3::color(0.5, 0.5, 0.8));
     world.objects.push(Box::new(hittable::Sphere::new(
         vec3::Point3::new(0., -1000., 0.),
         1000.,
@@ -134,21 +134,26 @@ fn setup_world(world: &mut HittableList) {
     )));
     let mat_left = material::Dielectric::new(1.5);
     world.objects.push(Box::new(hittable::Sphere::new(
-        vec3::Point3::new(-4., 1., 0.),
+        vec3::Point3::new(4., 1., 0.),
         1.0,
         Box::new(mat_left),
     )));
     let mat_left2 = material::Dielectric::new(1.5);
     world.objects.push(Box::new(hittable::Sphere::new(
-        vec3::Point3::new(-4., 1., 0.),
+        vec3::Point3::new(4., 1., 0.),
         -0.8,
         Box::new(mat_left2),
     )));
     let mat_right = material::Metal::new(vec3::color(0.7, 0.6, 0.5), 0.0);
     world.objects.push(Box::new(hittable::Sphere::new(
-        vec3::Point3::new(4., 1., 0.),
+        vec3::Point3::new(-4., 1., 0.),
         1.0,
         Box::new(mat_right),
     )));
-
+    let mat_more = material::Dielectric::new(1.5);
+    world.objects.push(Box::new(hittable::Sphere::new(
+        vec3::Point3::new(0., 1., -5.),
+        3.0,
+        Box::new(mat_more),
+    )));
 }
