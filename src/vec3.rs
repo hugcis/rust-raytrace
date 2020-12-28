@@ -64,7 +64,13 @@ impl ops::Sub<Vec3> for Vec3 {
     type Output = Vec3;
 
     fn sub(self, other: Self) -> Vec3 {
-        self + (other * -1_f64)
+        Vec3 {
+            e: [
+                self.e[0] - other.e[0],
+                self.e[1] - other.e[1],
+                self.e[2] - other.e[2],
+            ],
+        }
     }
 }
 impl ops::Sub<f64> for Vec3 {
@@ -136,7 +142,7 @@ impl Vec3 {
         )
     }
     pub fn length_squared(&self) -> f64 {
-        self.e.iter().map(|x| x * x).sum()
+        self.e[0] * self.e[0] + self.e[1] * self.e[1] + self.e[2] * self.e[2]
     }
     pub fn length(&self) -> f64 {
         self.length_squared().sqrt()
@@ -148,7 +154,7 @@ impl Vec3 {
         self.e[1]
     }
     // pub fn z(&self) -> f64 {
-        // self.e[2]
+    // self.e[2]
     // }
     pub fn near_zero(&self) -> bool {
         let s = 1e-8;
@@ -157,7 +163,7 @@ impl Vec3 {
 }
 
 pub fn dot(one: Vec3, other: Vec3) -> f64 {
-    (one * other).e.iter().sum()
+    one.e[0] * other.e[0] + one.e[1] * other.e[1] + one.e[2] * other.e[2]
 }
 
 pub fn cross(one: Vec3, other: Vec3) -> Vec3 {
@@ -181,7 +187,6 @@ pub fn write_color(
     sample_per_pixel: i32,
     mut writer: impl std::io::Write,
 ) -> std::io::Result<()> {
-
     let scale = 1. / f64::from(sample_per_pixel);
     writer.write_all(
         &format!(
