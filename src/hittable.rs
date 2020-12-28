@@ -39,11 +39,11 @@ pub trait Hittable {
 pub struct Sphere {
     center: Point3,
     radius: f64,
-    material: Box<dyn Material>,
+    material: Box<dyn Material + Send + Sync>,
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f64, material: Box<dyn Material>) -> Sphere {
+    pub fn new(center: Vec3, radius: f64, material: Box<dyn Material + Send + Sync>) -> Sphere {
         Sphere {
             center,
             radius,
@@ -85,11 +85,11 @@ impl Hittable for Sphere {
 }
 
 pub struct HittableList {
-    pub objects: Vec<Box<dyn Hittable>>,
+    pub objects: Vec<Box<dyn Hittable + Send + Sync>>,
 }
 
 impl HittableList {
-    pub fn new(objs: Vec<Box<dyn Hittable>>) -> HittableList {
+    pub fn new(objs: Vec<Box<dyn Hittable + Send + Sync>>) -> HittableList {
         HittableList { objects: objs }
     }
 
