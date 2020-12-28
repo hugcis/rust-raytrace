@@ -126,7 +126,13 @@ impl ops::Neg for Vec3 {
         self * -1_f64
     }
 }
-
+impl PartialEq for Vec3 {
+    fn eq(&self, other: &Self) -> bool {
+        ((self.e[0] - other.e[0]).abs() == 0.)
+            & ((self.e[1] - other.e[1]).abs() == 0.)
+            & ((self.e[2] - other.e[2]).abs() == 0.)
+    }
+}
 impl Vec3 {
     pub fn new(x: f64, y: f64, z: f64) -> Vec3 {
         Vec3 { e: [x, y, z] }
@@ -234,4 +240,37 @@ pub fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) -> Vec3 {
     let r_out_perp = (uv + n * cos_theta) * etai_over_etat;
     let r_out_parallel = n * (-(1.0 - r_out_perp.length_squared()).abs().sqrt());
     r_out_perp + r_out_parallel
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vec_vec_ops() {
+        assert_eq!(
+            Vec3::new(1., 2., 3.) + Vec3::new(4., 5., 6.),
+            Vec3::new(5., 7., 9.)
+        );
+        assert_eq!(
+            Vec3::new(1., 2., 3.) * Vec3::new(4., 5., 6.),
+            Vec3::new(4., 10., 18.)
+        );
+        assert_eq!(
+            Vec3::new(1., 2., 3.) - Vec3::new(4., 5., 6.),
+            Vec3::new(-3., -3., -3.)
+        );
+    }
+
+    #[test]
+    fn vec_f64_ops() {
+        assert_eq!(
+            Vec3::new(1., 2., 3.) + 4.,
+            Vec3::new(5., 6., 7.)
+        );
+        assert_eq!(
+            Vec3::new(1., 2., 3.) * 4.,
+            Vec3::new(4., 8., 12.)
+        );
+    }
 }
