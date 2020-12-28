@@ -17,3 +17,6 @@ Material:
 - ☑️ Metal 
 - ⬜ Smoke
 - ⬜ Image texture
+
+Implementation:
+- ☑️ Multi-threaded 
