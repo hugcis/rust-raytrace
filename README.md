@@ -4,16 +4,16 @@ This is a simple raytracer based on Peter Shirley's book [Ray Tracing in One
 Weekend](https://raytracing.github.io/books/RayTracingInOneWeekend.html).
 
 Shapes:
-☑️ Sphere 
-⬜ Triangle
-⬜ Others
+- ☑️ Sphere 
+- ⬜ Triangle
+- ⬜ Others
 
 Lighting:
-⬜ Light sources
+- ⬜ Light sources
 
 Material: 
-☑️ Lambertian 
-☑️ Dielectric 
-☑️ Metal 
-⬜ Smoke
-⬜ Image texture
+- ☑️ Lambertian 
+- ☑️ Dielectric 
+- ☑️ Metal 
+- ⬜ Smoke
+- ⬜ Image texture
