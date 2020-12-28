@@ -1,6 +1,6 @@
+use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{dot, Point3, Vec3};
-use crate::material::Material;
 
 #[derive(Clone, Copy)]
 pub struct HitRecord {
@@ -33,7 +33,7 @@ impl HitRecord {
 
 pub trait Hittable {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64, hit_rec: &mut HitRecord) -> bool;
-    fn get_material(&self) -> &Box<dyn Material>;
+    fn get_material(&self) -> &dyn Material;
 }
 
 pub struct Sphere {
@@ -53,8 +53,8 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
-    fn get_material(&self) -> &Box<dyn Material> {
-        &self.material
+    fn get_material(&self) -> &dyn Material {
+        &*self.material
     }
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
         let oc = r.origin() - self.center;
