@@ -2,12 +2,12 @@ use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{dot, Point3, Vec3};
 
-#[derive(Clone, Copy)]
 pub struct HitRecord {
     pub p: Point3,
     normal: Vec3,
     t: f64,
     pub front_face: bool,
+    pub mat: Option<Box<dyn Material + Send + Sync>>
 }
 
 impl HitRecord {
@@ -17,6 +17,7 @@ impl HitRecord {
             normal: Vec3::new(0., 0., 0.),
             t: 0.0,
             front_face: true,
+            mat: None,
         }
     }
     pub fn set_face_normal(&mut self, r: &Ray, outward_normal: Vec3) {
@@ -33,17 +34,16 @@ impl HitRecord {
 
 pub trait Hittable {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64, hit_rec: &mut HitRecord) -> bool;
-    fn get_material(&self) -> &dyn Material;
 }
 
-pub struct Sphere {
+pub struct Sphere<T> where T: Material + Copy {
     center: Point3,
     radius: f64,
-    material: Box<dyn Material + Send + Sync>,
+    material: T,
 }
 
-impl Sphere {
-    pub fn new(center: Vec3, radius: f64, material: Box<dyn Material + Send + Sync>) -> Sphere {
+impl<T> Sphere<T> where T: Material + Copy {
+    pub fn new(center: Vec3, radius: f64, material: T) -> Sphere<T> {
         Sphere {
             center,
             radius,
@@ -52,16 +52,13 @@ impl Sphere {
     }
 }
 
-impl Hittable for Sphere {
-    fn get_material(&self) -> &dyn Material {
-        &*self.material
-    }
+impl<T> Hittable for Sphere<T> where T: 'static + Material + Send + Sync + Copy {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
         let oc = r.origin() - self.center;
         let a = r.direction().length_squared();
         let half_b = dot(oc, r.direction());
         let c = oc.length_squared() - self.radius * self.radius;
-        let discriminant = half_b * half_b - a * c;
+        let discriminant = half_b.powi(2) - a * c;
         if discriminant < 0. {
             false
         } else {
@@ -78,6 +75,7 @@ impl Hittable for Sphere {
                 rec.p = r.at(rec.t);
                 let outward_normal = (rec.p - self.center) / self.radius;
                 rec.set_face_normal(r, outward_normal);
+                rec.mat = Some(Box::new(self.material));
             }
             has_hit
         }
@@ -92,21 +90,21 @@ impl HittableList {
     pub fn new(objs: Vec<Box<dyn Hittable + Send + Sync>>) -> HittableList {
         HittableList { objects: objs }
     }
+}
 
-    pub fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> (bool, usize) {
-        let mut temp_rec = HitRecord::new();
+impl Hittable for HittableList {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
         let mut hit_anything = false;
         let mut closest_so_far = t_max;
-        let mut ret_idx = 0;
 
-        for (idx, obj) in self.objects.iter().enumerate() {
+        for obj in self.objects.iter() {
+            let mut temp_rec = HitRecord::new();
             if (*obj).hit(r, t_min, closest_so_far, &mut temp_rec) {
                 hit_anything = true;
-                ret_idx = idx;
                 closest_so_far = temp_rec.t;
                 *rec = temp_rec;
             }
         }
-        (hit_anything, ret_idx)
+        hit_anything
     }
 }

@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::thread;
 
 use crate::camera::Camera;
-use crate::hittable::HittableList;
+use crate::hittable::{Hittable, HittableList};
 use crate::utils::random_double;
 
 struct Scene {
@@ -28,13 +28,18 @@ fn ray_color(r: &ray::Ray, world: &HittableList, depth: i32) -> vec3::Color {
     if depth <= 0 {
         vec3::color(0., 0., 0.)
     } else {
-        let (hit_any, idx) = world.hit(r, 0.001, f64::INFINITY, &mut rec);
+        let hit_any = world.hit(r, 0.001, f64::INFINITY, &mut rec);
         if hit_any {
-            let (hit, attenuation, scattered) = world.objects[idx].get_material().scatter(r, &rec);
-            if hit {
-                ray_color(&scattered, world, depth - 1) * (attenuation)
-            } else {
-                vec3::color(0.0, 0.0, 0.0)
+            match rec.mat {
+                Some(ref mat) => {
+                    let (hit, attenuation, scattered) = mat.scatter(r, &rec);
+                    if hit {
+                        ray_color(&scattered, world, depth - 1) * (attenuation)
+                    } else {
+                        vec3::color(0.0, 0.0, 0.0)
+                    }
+                }
+                None => panic!("Hit recorded with no material."),
             }
         } else {
             let unit_direction: vec3::Vec3 = vec3::unit_vector(&r.direction());
@@ -88,13 +93,12 @@ fn main() {
     for _ in 0..N_THREADS {
         let scene_thr_local = Arc::clone(&sc_arc);
         let handle = thread::spawn(move || {
-            let gr_vec = compute_grid(
+            compute_grid(
                 &*scene_thr_local,
                 im_height,
                 IM_WIDTH,
                 sample_per_pixel / N_THREADS,
-            );
-            gr_vec
+            )
         });
         handles.push(handle);
     }
@@ -113,12 +117,7 @@ fn main() {
             for c in 0..N_THREADS {
                 pixel_color += gr_vecs[usize::try_from(c).unwrap()][idx];
             }
-            vec3::write_color(
-                pixel_color,
-                sample_per_pixel,
-                io::stdout(),
-            )
-            .unwrap();
+            vec3::write_color(pixel_color, sample_per_pixel, io::stdout()).unwrap();
         }
     }
     eprintln!("Done")
@@ -152,7 +151,7 @@ fn setup_world(world: &mut HittableList) {
     world.objects.push(Box::new(hittable::Sphere::new(
         vec3::Point3::new(0., -1000., 0.),
         1000.,
-        Box::new(ground_material),
+        ground_material,
     )));
 
     for a in -11..11 {
@@ -164,19 +163,28 @@ fn setup_world(world: &mut HittableList) {
                 f64::from(b) + 0.9 * random_double(),
             );
             if (center - vec3::point3(4., 0.2, 0.)).length() > 0.9 {
-                let material: Box<dyn material::Material + Send + Sync> = if choose_mat < 0.8 {
+                if choose_mat < 0.8 {
                     let color = vec3::Color::random() * vec3::Color::random();
-                    Box::new(material::Lambertian::new(color))
+                    world.objects.push(Box::new(hittable::Sphere::new(
+                        center,
+                        0.2,
+                        material::Lambertian::new(color),
+                    )));
                 } else if choose_mat < 0.95 {
                     let color = vec3::Color::random_range(0.5, 1.);
                     let fuzz = utils::random_double_range(0., 0.5);
-                    Box::new(material::Metal::new(color, fuzz))
+                    world.objects.push(Box::new(hittable::Sphere::new(
+                        center,
+                        0.2,
+                        material::Metal::new(color, fuzz),
+                    )));
                 } else {
-                    Box::new(material::Dielectric::new(1.5))
+                    world.objects.push(Box::new(hittable::Sphere::new(
+                        center,
+                        0.2,
+                        material::Dielectric::new(1.5),
+                    )));
                 };
-                world
-                    .objects
-                    .push(Box::new(hittable::Sphere::new(center, 0.2, material)));
             }
         }
     }
@@ -185,31 +193,38 @@ fn setup_world(world: &mut HittableList) {
     world.objects.push(Box::new(hittable::Sphere::new(
         vec3::Point3::new(0., 1., 0.),
         1.0,
-        Box::new(mat_center),
+        mat_center,
     )));
     let mat_left = material::Dielectric::new(1.5);
     world.objects.push(Box::new(hittable::Sphere::new(
         vec3::Point3::new(4., 1., 0.),
         1.0,
-        Box::new(mat_left),
+        mat_left,
     )));
     let mat_left2 = material::Dielectric::new(1.5);
     world.objects.push(Box::new(hittable::Sphere::new(
         vec3::Point3::new(4., 1., 0.),
         -0.8,
-        Box::new(mat_left2),
+        mat_left2,
     )));
     let mat_right = material::Metal::new(vec3::color(0.7, 0.6, 0.5), 0.0);
     world.objects.push(Box::new(hittable::Sphere::new(
         vec3::Point3::new(-4., 1., 0.),
         1.0,
-        Box::new(mat_right),
+        mat_right,
     )));
     let mat_more = material::Dielectric::new(1.5);
     let sphere_more = Box::new(hittable::Sphere::new(
         vec3::Point3::new(0., 1., -5.),
         3.0,
-        Box::new(mat_more) as Box<dyn material::Material + Send + Sync>,
-    )) as Box<dyn hittable::Hittable + Send + Sync>;
+        mat_more,
+    ));
     world.objects.push(sphere_more);
+    let mat_more2 = material::Dielectric::new(1.5);
+    let sphere_more2 = Box::new(hittable::Sphere::new(
+        vec3::Point3::new(0., 1., -5.),
+        -1.3,
+       mat_more2,
+    ));
+    world.objects.push(sphere_more2);
 }
