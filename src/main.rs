@@ -4,6 +4,8 @@ mod material;
 mod ray;
 mod utils;
 mod vec3;
+mod aabb;
+mod bvh;
 
 use std::convert::TryFrom;
 use std::io;

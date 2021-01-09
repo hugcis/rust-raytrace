@@ -1,3 +1,4 @@
+use crate::aabb::{surrounding_box, AABB};
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{dot, Point3, Vec3};
@@ -5,9 +6,9 @@ use crate::vec3::{dot, Point3, Vec3};
 pub struct HitRecord {
     pub p: Point3,
     normal: Vec3,
-    t: f64,
+    pub t: f64,
     pub front_face: bool,
-    pub mat: Option<Box<dyn Material + Send + Sync>>
+    pub mat: Option<Box<dyn Material + Send + Sync>>,
 }
 
 impl HitRecord {
@@ -34,15 +35,22 @@ impl HitRecord {
 
 pub trait Hittable {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64, hit_rec: &mut HitRecord) -> bool;
+    fn bounding_box(&self, time0: f64, time1: f64) -> Option<AABB>;
 }
 
-pub struct Sphere<T> where T: Material + Copy {
+pub struct Sphere<T>
+where
+    T: Material + Copy,
+{
     center: Point3,
     radius: f64,
     material: T,
 }
 
-impl<T> Sphere<T> where T: Material + Copy {
+impl<T> Sphere<T>
+where
+    T: Material + Copy,
+{
     pub fn new(center: Vec3, radius: f64, material: T) -> Sphere<T> {
         Sphere {
             center,
@@ -52,7 +60,10 @@ impl<T> Sphere<T> where T: Material + Copy {
     }
 }
 
-impl<T> Hittable for Sphere<T> where T: 'static + Material + Send + Sync + Copy {
+impl<T> Hittable for Sphere<T>
+where
+    T: 'static + Material + Send + Sync + Copy,
+{
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
         let oc = r.origin() - self.center;
         let a = r.direction().length_squared();
@@ -80,6 +91,13 @@ impl<T> Hittable for Sphere<T> where T: 'static + Material + Send + Sync + Copy 
             has_hit
         }
     }
+
+    fn bounding_box(&self, _time0: f64, _time1: f64) -> Option<AABB> {
+        Some(AABB::new(
+            self.center - Vec3::new(self.radius, self.radius, self.radius),
+            self.center + Vec3::new(self.radius, self.radius, self.radius),
+        ))
+    }
 }
 
 pub struct HittableList {
@@ -106,5 +124,35 @@ impl Hittable for HittableList {
             }
         }
         hit_anything
+    }
+
+    fn bounding_box(&self, time0: f64, time1: f64) -> Option<AABB> {
+        if self.objects.len() == 0 {
+            None
+        } else {
+            let mut first_box = true;
+            // Useless init since the first loop should go through setting res_box = val
+            let mut res_box = AABB::new(Point3::new(0., 0., 0.), Point3::new(0., 0., 0.));
+            if self
+                .objects
+                .iter()
+                .any(|obj| match obj.bounding_box(time0, time1) {
+                    Some(val) => {
+                        res_box = if first_box {
+                            val
+                        } else {
+                            surrounding_box(&res_box, &val)
+                        };
+                        first_box = false;
+                        true
+                    }
+                    None => false,
+                })
+            {
+                Some(res_box)
+            } else {
+                None
+            }
+        }
     }
 }

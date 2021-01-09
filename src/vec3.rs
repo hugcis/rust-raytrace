@@ -159,9 +159,9 @@ impl Vec3 {
     pub fn y(&self) -> f64 {
         self.e[1]
     }
-    // pub fn z(&self) -> f64 {
-    // self.e[2]
-    // }
+    pub fn z(&self) -> f64 {
+        self.e[2]
+    }
     pub fn near_zero(&self) -> bool {
         let s = 1e-8;
         (self.e[0].abs() < s) & (self.e[1].abs() < s) & (self.e[2].abs() < s)
