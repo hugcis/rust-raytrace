@@ -1,38 +1,38 @@
+mod aabb;
+mod bvh;
 mod camera;
 mod hittable;
 mod material;
 mod ray;
 mod utils;
 mod vec3;
-mod aabb;
-mod bvh;
 
 use std::convert::TryFrom;
 use std::io;
 use std::sync::Arc;
 use std::thread;
 
+use crate::bvh::{BVHNode, HittableItem};
 use crate::camera::Camera;
 use crate::hittable::{Hittable, HittableList};
 use crate::utils::random_double;
 
 struct Scene {
     camera: camera::Camera,
-    world: HittableList,
+    world: BVHNode,
     im_height: i32,
     im_width: i32,
     max_depth: i32,
 }
 
-fn ray_color(r: &ray::Ray, world: &HittableList, depth: i32) -> vec3::Color {
-    let mut rec = hittable::HitRecord::new();
+fn ray_color(r: &ray::Ray, world: &BVHNode, depth: i32) -> vec3::Color {
     // Too many bounces already
     if depth <= 0 {
         vec3::color(0., 0., 0.)
     } else {
-        let hit_any = world.hit(r, 0.001, f64::INFINITY, &mut rec);
-        if hit_any {
-            match rec.mat {
+        let hit_any = world.hit(r, 0.001, f64::INFINITY);
+        match hit_any {
+            Some(rec) => match rec.mat {
                 Some(ref mat) => {
                     let (hit, attenuation, scattered) = mat.scatter(r, &rec);
                     if hit {
@@ -42,20 +42,21 @@ fn ray_color(r: &ray::Ray, world: &HittableList, depth: i32) -> vec3::Color {
                     }
                 }
                 None => panic!("Hit recorded with no material."),
+            },
+            None => {
+                let unit_direction: vec3::Vec3 = vec3::unit_vector(&r.direction());
+                let t = 0.5 * (unit_direction.y() + 1.0);
+                vec3::color(1.0, 1.0, 1.0) * (1. - t) + vec3::color(0.5, 0.7, 1.0) * t
             }
-        } else {
-            let unit_direction: vec3::Vec3 = vec3::unit_vector(&r.direction());
-            let t = 0.5 * (unit_direction.y() + 1.0);
-            vec3::color(1.0, 1.0, 1.0) * (1. - t) + vec3::color(0.5, 0.7, 1.0) * t
         }
     }
 }
 
 fn main() {
-    const N_THREADS: i32 = 4;
+    const N_THREADS: i32 = 2;
     // Image
     const RATIO: f64 = 16. / 9.;
-    const IM_WIDTH: i32 = 1200;
+    const IM_WIDTH: i32 = 200;
     const MAX_DEPTH: i32 = 50;
     let sample_per_pixel = 500;
     let im_height: i32 = (f64::from(IM_WIDTH) / RATIO) as i32;
@@ -63,6 +64,12 @@ fn main() {
     // World
     let mut world = hittable::HittableList::new(vec![]);
     setup_world(&mut world);
+    let hit_list: Vec<HittableItem> = world
+        .objects
+        .into_iter()
+        .map(move |o| HittableItem { it: o })
+        .collect();
+    let bvh = BVHNode::new(hit_list, 0., 0.);
 
     // Camera
     let lookfrom = vec3::point3(6., 2., 12.);
@@ -81,7 +88,7 @@ fn main() {
     //Scene
     let scene = Scene {
         camera,
-        world,
+        world: bvh,
         im_height,
         im_width: IM_WIDTH,
         max_depth: MAX_DEPTH,
@@ -226,7 +233,7 @@ fn setup_world(world: &mut HittableList) {
     let sphere_more2 = Box::new(hittable::Sphere::new(
         vec3::Point3::new(0., 1., -5.),
         -1.3,
-       mat_more2,
+        mat_more2,
     ));
     world.objects.push(sphere_more2);
 }

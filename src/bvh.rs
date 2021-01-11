@@ -1,112 +1,104 @@
 use crate::aabb::{surrounding_box, AABB};
-use crate::hittable::{HitRecord, Hittable, HittableList};
+use crate::hittable::{HitRecord, Hittable};
 use crate::ray::Ray;
 use rand::Rng;
 use std::cmp::Ordering;
 
-struct CompareHittable {
-    val: Box<dyn Hittable>,
-    axis: usize,
-}
-
-impl CompareHittable {
-    pub fn new(val: Box<dyn Hittable>, axis: usize) -> CompareHittable {
-        CompareHittable { val, axis }
-    }
-}
-impl PartialEq for CompareHittable {
-    fn eq(&self, other: &Self) -> bool {
-        let box_a = self.val.bounding_box(0., 0.);
-        let box_b = other.val.bounding_box(0., 0.);
-        match (box_a, box_b) {
-            (Some(v1), Some(v2)) => v1.min.e[self.axis] == v2.min.e[self.axis],
-        }
-    }
-}
-impl Eq for CompareHittable {}
-impl PartialOrd for CompareHittable {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let box_a = self.val.bounding_box(0., 0.);
-        let box_b = other.val.bounding_box(0., 0.);
-        match (box_a, box_b) {
-            (Some(v1), Some(v2)) => v1.min.e[self.axis].partial_cmp(&v2.min.e[self.axis]),
-        }
-    }
-}
-
-struct BVHNode {
-    left: Box<dyn Hittable>,
-    right: Box<dyn Hittable>,
+pub struct BVHNode {
+    left: Box<dyn Hittable + Send + Sync>,
+    right: Option<Box<dyn Hittable + Send + Sync>>,
     aabb_box: AABB,
 }
 
 impl Hittable for BVHNode {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         if !self.aabb_box.hit(r, t_min, t_max) {
-            false
+            None
         } else {
-            let hit_left = self.left.hit(r, t_min, t_max, rec);
-            let hit_right = self
-                .left
-                .hit(r, t_min, if hit_left { rec.t } else { t_max }, rec);
-            hit_left | hit_right
+            let hit_left = self.left.hit(r, t_min, t_max);
+            match hit_left {
+                Some(v) => match &self.right {
+                    Some(right) => match right.hit(r, t_min, v.t) {
+                        Some(k) => Some(k),
+                        None => Some(v),
+                    },
+                    None => Some(v),
+                },
+                None => match &self.right {
+                    Some(right) => right.hit(r, t_min, t_max),
+                    None => None,
+                },
+            }
         }
     }
-    fn bounding_box(&self, time0: f64, time1: f64) -> Option<AABB> {
+    fn bounding_box(&self, _time0: f64, _time1: f64) -> Option<AABB> {
         Some(self.aabb_box)
     }
 }
 
+pub struct HittableItem {
+    pub it: Box<dyn Hittable + Send + Sync>,
+}
+
 impl BVHNode {
-    pub fn new(
-        objs: &mut [Box<dyn Hittable>],
-        start: usize,
-        end: usize,
-        time0: f64,
-        time1: f64,
-    ) -> BVHNode {
+    pub fn new(mut objs: Vec<HittableItem>, time0: f64, time1: f64) -> BVHNode {
         let mut rng = rand::thread_rng();
         let axis = rng.gen_range(0..2);
 
-        let obj_span = end - start;
+        let obj_span = objs.len();
         let (left, right) = if obj_span == 1 {
-            (&objs[start], &objs[start])
+            let last = objs.pop().unwrap();
+            (last, None)
         } else if obj_span == 2 {
-            let box_a = objs[start].bounding_box(0., 0.);
-            let box_b = objs[start + 1].bounding_box(0., 0.);
+            let box_a = objs[0].it.bounding_box(0., 0.);
+            let box_b = objs[1].it.bounding_box(0., 0.);
             let test = match (box_a, box_b) {
                 (Some(v1), Some(v2)) => v1.min.e[axis].partial_cmp(&v2.min.e[axis]).unwrap(),
                 (_, _) => panic!("No bounding box found"),
             };
+            let last = objs.pop().unwrap();
+            let bef = objs.pop().unwrap();
             match test {
-                Ordering::Less => (&objs[start], &objs[start + 1]),
-                _ => (&objs[start + 1], &objs[start]),
+                Ordering::Less => (bef, Some(last)),
+                _ => (last, Some(bef)),
             }
         } else {
-            objs[start..end].sort_by(|a, b| {
-                let box_a = a.bounding_box(0., 0.);
-                let box_b = b.bounding_box(0., 0.);
+            objs.sort_by(|a, b| {
+                let box_a = a.it.bounding_box(0., 0.);
+                let box_b = b.it.bounding_box(0., 0.);
                 match (box_a, box_b) {
                     (Some(v1), Some(v2)) => v1.min.e[axis].partial_cmp(&v2.min.e[axis]).unwrap(),
                     (_, _) => panic!("No bounding box found"),
                 }
             });
-            let mid = start + obj_span / 2;
-            let lef: &Box<dyn Hittable> = &Box::new(BVHNode::new(objs, start, mid, time0, time1));
-            let rig: &Box<dyn Hittable> = &Box::new(BVHNode::new(objs, mid, end, time0, time1));
-            (lef, rig)
+            let mid = obj_span / 2;
+            let second_half = objs.split_off(mid);
+            let lef: Box<dyn Hittable + Send + Sync> = Box::new(BVHNode::new(objs, time0, time1));
+            let rig: Box<dyn Hittable + Send + Sync> =
+                Box::new(BVHNode::new(second_half, time0, time1));
+            (HittableItem { it: lef }, Some(HittableItem { it: rig }))
         };
-        let box_a = left.bounding_box(0., 0.);
-        let box_b = right.bounding_box(0., 0.);
+        let box_a = left.it.bounding_box(time0, time1);
+        let box_b = match &right {
+            Some(r) => r.it.bounding_box(time0, time1),
+            None => None,
+        };
 
         match (box_a, box_b) {
             (Some(v1), Some(v2)) => BVHNode {
-                left: *left,
-                right: *right,
+                left: left.it,
+                right: match right {
+                    Some(r) => Some(r.it),
+                    None => None,
+                },
                 aabb_box: surrounding_box(&v1, &v2),
+            },
+            (Some(v1), None) => BVHNode {
+                left: left.it,
+                right: None,
+                aabb_box: v1,
             },
             (_, _) => panic!("No bounding box"),
         }
     }
 }
-
