@@ -56,7 +56,7 @@ fn main() {
     const N_THREADS: i32 = 2;
     // Image
     const RATIO: f64 = 16. / 9.;
-    const IM_WIDTH: i32 = 200;
+    const IM_WIDTH: i32 = 1200;
     const MAX_DEPTH: i32 = 50;
     let sample_per_pixel = 500;
     let im_height: i32 = (f64::from(IM_WIDTH) / RATIO) as i32;
