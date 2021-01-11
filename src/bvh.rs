@@ -16,18 +16,14 @@ impl Hittable for BVHNode {
             None
         } else {
             let hit_left = self.left.hit(r, t_min, t_max);
+            let ref_right = self.right.as_ref();
             match hit_left {
-                Some(v) => match &self.right {
-                    Some(right) => match right.hit(r, t_min, v.t) {
-                        Some(k) => Some(k),
-                        None => Some(v),
-                    },
-                    None => Some(v),
-                },
-                None => match &self.right {
-                    Some(right) => right.hit(r, t_min, t_max),
-                    None => None,
-                },
+                Some(v) => ref_right
+                    .map(|a| a.hit(r, t_min, v.t))
+                    .unwrap_or(Some(v)),
+                None => ref_right
+                    .map(|a| a.hit(r, t_min, t_max))
+                    .unwrap_or(None),
             }
         }
     }
