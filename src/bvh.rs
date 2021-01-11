@@ -18,12 +18,11 @@ impl Hittable for BVHNode {
             let hit_left = self.left.hit(r, t_min, t_max);
             let ref_right = self.right.as_ref();
             match hit_left {
-                Some(v) => ref_right
-                    .map(|a| a.hit(r, t_min, v.t))
-                    .unwrap_or(Some(v)),
-                None => ref_right
-                    .map(|a| a.hit(r, t_min, t_max))
-                    .unwrap_or(None),
+                Some(v) => match &self.right {
+                    Some(right) => Some(right.hit(r, t_min, v.t).unwrap_or(v)),
+                    None => Some(v),
+                },
+                None => ref_right.and_then(|a| a.hit(r, t_min, t_max)),
             }
         }
     }
@@ -83,10 +82,7 @@ impl BVHNode {
         match (box_a, box_b) {
             (Some(v1), Some(v2)) => BVHNode {
                 left: left.it,
-                right: match right {
-                    Some(r) => Some(r.it),
-                    None => None,
-                },
+                right: right.map(|r| r.it),
                 aabb_box: surrounding_box(&v1, &v2),
             },
             (Some(v1), None) => BVHNode {
