@@ -72,6 +72,7 @@ impl<T> Hittable for Sphere<T>
 where
     T: 'static + Material + Send + Sync + Copy,
 {
+    #[inline]
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let oc = r.origin() - self.center;
         let a = r.direction().length_squared();
@@ -92,16 +93,9 @@ where
             if has_hit {
                 let p = r.at(root);
                 let outward_normal = (p - self.center) / self.radius;
-                let rec = HitRecord::new(
-                    r,
-                    p,
-                    outward_normal,
-                    root,
-                    self.material,
-                );
+                let rec = HitRecord::new(r, p, outward_normal, root, self.material);
                 Some(rec)
-            }
-            else {
+            } else {
                 None
             }
         }
@@ -144,22 +138,17 @@ impl Hittable for HittableList {
             let mut first_box = true;
             // Useless init since the first loop should go through setting res_box = val
             let mut res_box = AABB::new(Point3::new(0., 0., 0.), Point3::new(0., 0., 0.));
-            if self
-                .objects
-                .iter()
-                .any(|obj| match obj.bounding_box(time0, time1) {
-                    Some(val) => {
-                        res_box = if first_box {
-                            val
-                        } else {
-                            surrounding_box(&res_box, &val)
-                        };
-                        first_box = false;
-                        true
-                    }
-                    None => false,
+            if self.objects.iter().any(|obj| {
+                obj.bounding_box(time0, time1).map_or(false, |val| {
+                    res_box = if first_box {
+                        val
+                    } else {
+                        surrounding_box(&res_box, &val)
+                    };
+                    first_box = false;
+                    true
                 })
-            {
+            }) {
                 Some(res_box)
             } else {
                 None

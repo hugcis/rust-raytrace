@@ -25,3 +25,15 @@ impl Ray {
         self.orig + self.dir * t
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ray_at() {
+        let r = Ray::new(Vec3::new(-2., -2., -2.), Vec3::new(1., 1., 1.));
+        assert_eq!(r.at(2.), Vec3::new(0., 0., 0.));
+    }
+}

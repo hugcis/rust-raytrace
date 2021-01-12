@@ -12,7 +12,7 @@ use std::io;
 use std::sync::Arc;
 use std::thread;
 
-use crate::bvh::{BVHNode, HittableItem};
+use crate::bvh::BVHNode;
 use crate::camera::Camera;
 use crate::hittable::{Hittable, HittableList};
 use crate::utils::random_double;
@@ -56,19 +56,15 @@ fn main() {
     const N_THREADS: i32 = 2;
     // Image
     const RATIO: f64 = 16. / 9.;
-    const IM_WIDTH: i32 = 1200;
-    const MAX_DEPTH: i32 = 50;
-    let sample_per_pixel = 500;
+    const IM_WIDTH: i32 = 200;
+    const MAX_DEPTH: i32 = 10;
+    let sample_per_pixel = 50;
     let im_height: i32 = (f64::from(IM_WIDTH) / RATIO) as i32;
 
     // World
     let mut world = hittable::HittableList::new(vec![]);
     setup_world(&mut world);
-    let hit_list: Vec<HittableItem> = world
-        .objects
-        .into_iter()
-        .map(move |o| HittableItem { it: o })
-        .collect();
+    let hit_list: Vec<Box<dyn Hittable + Send + Sync>> = world.objects;
     let bvh = BVHNode::new(hit_list, 0., 0.);
 
     // Camera
@@ -224,16 +220,9 @@ fn setup_world(world: &mut HittableList) {
     )));
     let mat_more = material::Dielectric::new(1.5);
     let sphere_more = Box::new(hittable::Sphere::new(
-        vec3::Point3::new(0., 1., -5.),
-        3.0,
+        vec3::Point3::new(0., 3., -5.),
+        1.5,
         mat_more,
     ));
     world.objects.push(sphere_more);
-    let mat_more2 = material::Dielectric::new(1.5);
-    let sphere_more2 = Box::new(hittable::Sphere::new(
-        vec3::Point3::new(0., 1., -5.),
-        -1.3,
-        mat_more2,
-    ));
-    world.objects.push(sphere_more2);
 }

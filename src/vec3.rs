@@ -168,10 +168,12 @@ impl Vec3 {
     }
 }
 
+#[inline]
 pub fn dot(one: Vec3, other: Vec3) -> f64 {
     one.e[0] * other.e[0] + one.e[1] * other.e[1] + one.e[2] * other.e[2]
 }
 
+#[inline]
 pub fn cross(one: Vec3, other: Vec3) -> Vec3 {
     Vec3 {
         e: [
@@ -231,10 +233,12 @@ pub fn random_unit_vector() -> Vec3 {
     unit_vector(&random_in_unit_sphere())
 }
 
+#[inline]
 pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
     v - n * dot(v, n) * 2.
 }
 
+#[inline]
 pub fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) -> Vec3 {
     let cos_theta = dot(-uv, n).min(1.0);
     let r_out_perp = (uv + n * cos_theta) * etai_over_etat;
