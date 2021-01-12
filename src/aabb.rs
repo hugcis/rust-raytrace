@@ -52,5 +52,22 @@ mod tests {
         let r = Ray::new(Vec3::new(-2., -2., -2.), Vec3::new(1., 1., 1.));
         let bbox = AABB::new(Point3::new(0., 0., 0.), Point3::new(1., 1., 1.));
         assert_eq!(bbox.hit(&r, 0.001, 100.), true);
+
+        let r = Ray::new(Vec3::new(-2., -2., -2.), Vec3::new(-1., -1., -1.));
+        let bbox = AABB::new(Point3::new(0., 0., 0.), Point3::new(1., 1., 1.));
+        assert_eq!(bbox.hit(&r, 0.001, 100.), false);
+
+        let r = Ray::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(-1., -1., -1.));
+        let bbox = AABB::new(Point3::new(0., 0., 0.), Point3::new(1., 1., 1.));
+        assert_eq!(bbox.hit(&r, 0.001, 100.), true);
+    }
+
+    #[test]
+    fn ray_intersects_surrounding_box() {
+        let r = Ray::new(Vec3::new(0., -0.5, 0.5), Vec3::new(1., 0., 0.));
+        let bbox1 = AABB::new(Point3::new(0., 0., 0.), Point3::new(1., 1., 1.));
+        let bbox2 = AABB::new(Point3::new(-1., -1., -1.), Point3::new(0., 0., 0.));
+        assert_eq!(bbox1.hit(&r, 0.001, 100.), false);
+        assert_eq!(surrounding_box(&bbox1, &bbox2).hit(&r, 0.001, 100.), true);
     }
 }
