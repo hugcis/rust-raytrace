@@ -3,6 +3,8 @@ use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{dot, Point3, Vec3};
 
+pub type BoxedHittable = Box<dyn Hittable + Send + Sync>;
+
 pub struct HitRecord {
     pub p: Point3,
     normal: Vec3,
@@ -110,11 +112,11 @@ where
 }
 
 pub struct HittableList {
-    pub objects: Vec<Box<dyn Hittable + Send + Sync>>,
+    pub objects: Vec<BoxedHittable>,
 }
 
 impl HittableList {
-    pub fn new(objs: Vec<Box<dyn Hittable + Send + Sync>>) -> HittableList {
+    pub fn new(objs: Vec<BoxedHittable>) -> HittableList {
         HittableList { objects: objs }
     }
 }
@@ -138,7 +140,7 @@ impl Hittable for HittableList {
             let mut first_box = true;
             // Useless init since the first loop should go through setting res_box = val
             let mut res_box = AABB::new(Point3::new(0., 0., 0.), Point3::new(0., 0., 0.));
-            if self.objects.iter().any(|obj| {
+            let box_cond = self.objects.iter().any(|obj| {
                 obj.bounding_box(time0, time1).map_or(false, |val| {
                     res_box = if first_box {
                         val
@@ -148,7 +150,8 @@ impl Hittable for HittableList {
                     first_box = false;
                     true
                 })
-            }) {
+            });
+            if box_cond {
                 Some(res_box)
             } else {
                 None

@@ -1,5 +1,5 @@
 use crate::ray::Ray;
-use crate::vec3::{cross, Point3, Vec3, unit_vector, random_in_unit_sphere};
+use crate::vec3::{cross, random_in_unit_sphere, unit_vector, Point3, Vec3};
 use std::f64::consts;
 
 pub struct Camera {
@@ -33,8 +33,7 @@ impl Camera {
         let origin = lookfrom;
         let horizontal = u * viewport_width * focus_dist;
         let vertical = v * viewport_height * focus_dist;
-        let lower_left_corner =
-            origin - horizontal / 2. - vertical / 2. - w * focus_dist;
+        let lower_left_corner = origin - horizontal / 2. - vertical / 2. - w * focus_dist;
         Camera {
             origin,
             horizontal,
@@ -42,7 +41,7 @@ impl Camera {
             lower_left_corner,
             u,
             v,
-            lens_radius: aperture / 2.
+            lens_radius: aperture / 2.,
         }
     }
 

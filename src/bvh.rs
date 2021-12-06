@@ -1,5 +1,5 @@
 use crate::aabb::{surrounding_box, AABB};
-use crate::hittable::{HitRecord, Hittable};
+use crate::hittable::{BoxedHittable, HitRecord, Hittable};
 use crate::ray::Ray;
 use rand::Rng;
 use std::cmp::Ordering;
@@ -31,23 +31,19 @@ impl Hittable for BVHNode {
     }
 }
 
-fn sort_closure(
-    axis: usize,
-) -> Box<dyn Fn(&Box<dyn Hittable + Send + Sync>, &Box<dyn Hittable + Send + Sync>) -> Ordering> {
-    Box::new(
-        move |a: &Box<dyn Hittable + Send + Sync>, b: &Box<dyn Hittable + Send + Sync>| {
-            let box_a = a.bounding_box(0., 0.);
-            let box_b = b.bounding_box(0., 0.);
-            match (box_a, box_b) {
-                (Some(v1), Some(v2)) => v1.min.e[axis].partial_cmp(&v2.min.e[axis]).unwrap(),
-                (_, _) => panic!("No bounding box found"),
-            }
-        },
-    )
+fn sort_closure(axis: usize) -> Box<dyn Fn(&BoxedHittable, &BoxedHittable) -> Ordering> {
+    Box::new(move |a: &BoxedHittable, b: &BoxedHittable| {
+        let box_a = a.bounding_box(0., 0.);
+        let box_b = b.bounding_box(0., 0.);
+        match (box_a, box_b) {
+            (Some(v1), Some(v2)) => v1.min.e[axis].partial_cmp(&v2.min.e[axis]).unwrap(),
+            (_, _) => panic!("No bounding box found"),
+        }
+    })
 }
 
 impl BVHNode {
-    pub fn new(mut objs: Vec<Box<dyn Hittable + Send + Sync>>, time0: f64, time1: f64) -> BVHNode {
+    pub fn new(mut objs: Vec<BoxedHittable>, time0: f64, time1: f64) -> BVHNode {
         let mut rng = rand::thread_rng();
         let axis = rng.gen_range(0..2);
 
@@ -81,12 +77,12 @@ impl BVHNode {
         let box_b = right.as_ref().and_then(|a| a.bounding_box(time0, time1));
         match (box_a, box_b) {
             (Some(v1), Some(v2)) => BVHNode {
-                left: left,
-                right: right,
+                left,
+                right,
                 aabb_box: surrounding_box(&v1, &v2),
             },
             (Some(v1), None) => BVHNode {
-                left: left,
+                left,
                 right: None,
                 aabb_box: v1,
             },

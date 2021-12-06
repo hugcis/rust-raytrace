@@ -268,13 +268,7 @@ mod tests {
 
     #[test]
     fn vec_f64_ops() {
-        assert_eq!(
-            Vec3::new(1., 2., 3.) + 4.,
-            Vec3::new(5., 6., 7.)
-        );
-        assert_eq!(
-            Vec3::new(1., 2., 3.) * 4.,
-            Vec3::new(4., 8., 12.)
-        );
+        assert_eq!(Vec3::new(1., 2., 3.) + 4., Vec3::new(5., 6., 7.));
+        assert_eq!(Vec3::new(1., 2., 3.) * 4., Vec3::new(4., 8., 12.));
     }
 }

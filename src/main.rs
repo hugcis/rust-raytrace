@@ -32,17 +32,14 @@ fn ray_color(r: &ray::Ray, world: &BVHNode, depth: i32) -> vec3::Color {
     } else {
         let hit_any = world.hit(r, 0.001, f64::INFINITY);
         match hit_any {
-            Some(rec) => match rec.mat {
-                Some(ref mat) => {
-                    let (hit, attenuation, scattered) = mat.scatter(r, &rec);
-                    if hit {
-                        ray_color(&scattered, world, depth - 1) * (attenuation)
-                    } else {
-                        vec3::color(0.0, 0.0, 0.0)
-                    }
-                }
-                None => panic!("Hit recorded with no material."),
-            },
+            Some(rec) => rec
+                .mat
+                .as_ref()
+                .expect("Hit recorded with no material.")
+                .scatter(r, &rec)
+                .map_or(vec3::color(0.0, 0.0, 0.0), |(attenuation, scattered)| {
+                    ray_color(&scattered, world, depth - 1) * (attenuation)
+                }),
             None => {
                 let unit_direction: vec3::Vec3 = vec3::unit_vector(&r.direction());
                 let t = 0.5 * (unit_direction.y() + 1.0);
@@ -53,12 +50,12 @@ fn ray_color(r: &ray::Ray, world: &BVHNode, depth: i32) -> vec3::Color {
 }
 
 fn main() {
-    const N_THREADS: i32 = 2;
+    const N_THREADS: i32 = 8;
     // Image
     const RATIO: f64 = 16. / 9.;
-    const IM_WIDTH: i32 = 200;
-    const MAX_DEPTH: i32 = 10;
-    let sample_per_pixel = 50;
+    const IM_WIDTH: i32 = 1200;
+    const MAX_DEPTH: i32 = 100;
+    let sample_per_pixel = 500;
     let im_height: i32 = (f64::from(IM_WIDTH) / RATIO) as i32;
 
     // World
@@ -91,7 +88,7 @@ fn main() {
     };
     let sc_arc = Arc::new(scene);
     let mut handles = vec![];
-    let mut gr_vecs: Vec<Vec<vec3::Color>> = vec![];
+    // let mut gr_vecs: Vec<Vec<vec3::Color>> = vec![];
     // Render
     print!("P3\n{} {}\n255\n", IM_WIDTH, im_height);
 
@@ -107,12 +104,10 @@ fn main() {
         });
         handles.push(handle);
     }
-    for handle in handles {
-        match handle.join() {
-            Ok(m) => gr_vecs.push(m),
-            Err(e) => panic!(e),
-        }
-    }
+    let gr_vecs: Vec<Vec<vec3::Color>> = handles
+        .into_iter()
+        .flat_map(|h| h.join())
+        .collect();
 
     for j in (0..im_height).rev() {
         eprint!("\rScanning lines, remaining: {} ", j);
@@ -168,7 +163,7 @@ fn setup_world(world: &mut HittableList) {
                 f64::from(b) + 0.9 * random_double(),
             );
             if (center - vec3::point3(4., 0.2, 0.)).length() > 0.9 {
-                if choose_mat < 0.8 {
+                if choose_mat < 0.6 {
                     let color = vec3::Color::random() * vec3::Color::random();
                     world.objects.push(Box::new(hittable::Sphere::new(
                         center,
@@ -220,7 +215,7 @@ fn setup_world(world: &mut HittableList) {
     )));
     let mat_more = material::Dielectric::new(1.5);
     let sphere_more = Box::new(hittable::Sphere::new(
-        vec3::Point3::new(0., 3., -5.),
+        vec3::Point3::new(0., 1.5, -5.),
         1.5,
         mat_more,
     ));

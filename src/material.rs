@@ -3,10 +3,14 @@ use crate::ray::Ray;
 use crate::utils::random_double;
 use crate::vec3::{
     color, dot, random_in_unit_sphere, random_unit_vector, reflect, refract, unit_vector, Color,
+    Point3,
 };
 
 pub trait Material {
-    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> (bool, Color, Ray);
+    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)>;
+    fn emit(&self, _u: f64, _v: f64, _p: Point3) -> Color {
+        color(0., 0., 0.)
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -21,14 +25,14 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> (bool, Color, Ray) {
+    fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let mut scatter_direction = rec.get_normal() + random_unit_vector();
         if scatter_direction.near_zero() {
             scatter_direction = rec.get_normal();
         }
         let scattered = Ray::new(rec.p, scatter_direction);
         let attenuation = self.color;
-        (true, attenuation, scattered)
+        Some((attenuation, scattered))
     }
 }
 
@@ -51,15 +55,15 @@ impl Metal {
 }
 
 impl Material for Metal {
-    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> (bool, Color, Ray) {
+    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let reflected = reflect(unit_vector(&r_in.direction()), rec.get_normal());
         let scattered = Ray::new(rec.p, reflected + random_in_unit_sphere() * self.fuzz);
         let attenuation = self.color;
-        (
-            dot(scattered.direction(), rec.get_normal()) > 0.,
-            attenuation,
-            scattered,
-        )
+        if dot(scattered.direction(), rec.get_normal()) > 0. {
+            Some((attenuation, scattered))
+        } else {
+            None
+        }
     }
 }
 
@@ -75,7 +79,7 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
-    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> (bool, Color, Ray) {
+    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let attenuation = color(1., 1., 1.);
         let refraction_ratio = if rec.front_face {
             1. / self.ir
@@ -93,7 +97,7 @@ impl Material for Dielectric {
             refract(unit_direction, rec.get_normal(), refraction_ratio)
         };
         let scattered = Ray::new(rec.p, direction);
-        (true, attenuation, scattered)
+        Some((attenuation, scattered))
     }
 }
 
