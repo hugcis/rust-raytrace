@@ -49,6 +49,37 @@ fn ray_color(r: &ray::Ray, world: &BVHNode, depth: i32) -> vec3::Color {
     }
 }
 
+fn ray_color(r: &mut ray::Ray, world: &BVHNode, depth: i32) -> vec3::Color {
+    // Too many bounces already
+    let radiance = vec3::color(0., 0., 0.);
+    for i in 0..depth {
+        let hit_any = world.hit(r, 0.001, f64::INFINITY);
+        radiance += match hit_any {
+            Some(rec) => {
+                match rec
+                    .mat
+                    .as_ref()
+                    .expect("Hit recorded with no material.")
+                    .scatter(r, &rec) {
+                        Some((attenuation, scattered_ray)) => {
+
+                        },
+                        None => {
+                            *ray
+                        }
+                    }
+
+            }
+            None => {
+                let unit_direction: vec3::Vec3 = vec3::unit_vector(&r.direction());
+                let t = 0.5 * (unit_direction.y() + 1.0);
+                vec3::color(1.0, 1.0, 1.0) * (1. - t) + vec3::color(0.5, 0.7, 1.0) * t
+            }
+        };
+    }
+    radiance
+}
+
 fn main() {
     const N_THREADS: i32 = 8;
     // Image
@@ -104,10 +135,7 @@ fn main() {
         });
         handles.push(handle);
     }
-    let gr_vecs: Vec<Vec<vec3::Color>> = handles
-        .into_iter()
-        .flat_map(|h| h.join())
-        .collect();
+    let gr_vecs: Vec<Vec<vec3::Color>> = handles.into_iter().flat_map(|h| h.join()).collect();
 
     for j in (0..im_height).rev() {
         eprint!("\rScanning lines, remaining: {} ", j);
@@ -146,6 +174,34 @@ fn add_to_pixel(pixel_color: &mut vec3::Color, scene: &Scene, line: i32, col: i3
     *pixel_color += ray_color(&ray, &scene.world, scene.max_depth);
 }
 
+fn make_random_sphere(world: &mut HittableList, center: vec3::Point3, radius: f64) {
+    let choose_mat = utils::random_double();
+    if (center - vec3::point3(4., radius, 0.)).length() > 0.9 {
+        if choose_mat < 0.6 {
+            let color = vec3::Color::random() * vec3::Color::random();
+            world.objects.push(Box::new(hittable::Sphere::new(
+                center,
+                radius,
+                material::Lambertian::new(color),
+            )));
+        } else if choose_mat < 0.95 {
+            let color = vec3::Color::random_range(0.5, 1.);
+            let fuzz = utils::random_double_range(0., 0.5);
+            world.objects.push(Box::new(hittable::Sphere::new(
+                center,
+                radius,
+                material::Metal::new(color, fuzz),
+            )));
+        } else {
+            world.objects.push(Box::new(hittable::Sphere::new(
+                center,
+                radius,
+                material::Dielectric::new(1.5),
+            )));
+        };
+    }
+}
+
 fn setup_world(world: &mut HittableList) {
     let ground_material = material::Lambertian::new(vec3::color(0.5, 0.5, 0.8));
     world.objects.push(Box::new(hittable::Sphere::new(
@@ -156,36 +212,29 @@ fn setup_world(world: &mut HittableList) {
 
     for a in -11..11 {
         for b in -11..11 {
-            let choose_mat = utils::random_double();
-            let center = vec3::point3(
-                f64::from(a) + 0.9 * random_double(),
-                0.2,
-                f64::from(b) + 0.9 * random_double(),
-            );
-            if (center - vec3::point3(4., 0.2, 0.)).length() > 0.9 {
-                if choose_mat < 0.6 {
-                    let color = vec3::Color::random() * vec3::Color::random();
-                    world.objects.push(Box::new(hittable::Sphere::new(
-                        center,
-                        0.2,
-                        material::Lambertian::new(color),
-                    )));
-                } else if choose_mat < 0.95 {
-                    let color = vec3::Color::random_range(0.5, 1.);
-                    let fuzz = utils::random_double_range(0., 0.5);
-                    world.objects.push(Box::new(hittable::Sphere::new(
-                        center,
-                        0.2,
-                        material::Metal::new(color, fuzz),
-                    )));
-                } else {
-                    world.objects.push(Box::new(hittable::Sphere::new(
-                        center,
-                        0.2,
-                        material::Dielectric::new(1.5),
-                    )));
-                };
-            }
+            let posx = f64::from(a) + 0.9 * random_double();
+            let posy = 0.2;
+            let posz = f64::from(b) + 0.9 * random_double();
+            let center = vec3::point3(posx, posy, posz);
+            make_random_sphere(world, center, 0.2);
+        }
+    }
+    for a in -22..22 {
+        for b in -22..22 {
+            let posx = f64::from(a) / 2. + 0.9 * random_double();
+            let posy = 0.05;
+            let posz = f64::from(b) / 2. + 0.9 * random_double();
+            let center = vec3::point3(posx, posy, posz);
+            make_random_sphere(world, center, 0.05);
+        }
+    }
+    for a in -33..33 {
+        for b in -33..33 {
+            let posx = f64::from(a) / 3. + 0.9 * random_double();
+            let posy = 0.02;
+            let posz = f64::from(b) / 3. + 0.9 * random_double();
+            let center = vec3::point3(posx, posy, posz);
+            make_random_sphere(world, center, 0.02);
         }
     }
 
